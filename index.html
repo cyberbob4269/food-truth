@@ -826,8 +826,7 @@ let searchCacheResults = [];
 const FREE_CAT_IDS = new Set(['dairy-milk','bread','cheddar','eggs','butter']);
 const UNLOCK_STORAGE_KEY = 'foodtruth_unlocked';
 // Filled after Stripe Payment Link is created (durable buy.stripe.com URL).
-let FOODTRUTH_PAYMENT_LINK = '';
-
+let FOODTRUTH_PAYMENT_LINK = 'https://buy.stripe.com/aFadR95rg2NvdSac1Gbo403';
 function isUnlocked() {
   try { return localStorage.getItem(UNLOCK_STORAGE_KEY) === '1'; } catch (_) { return false; }
 }

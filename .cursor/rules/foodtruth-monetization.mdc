@@ -20,7 +20,8 @@ alwaysApply: true
 |-------|--------|
 | Product | `prod_Ut6PW2XiksNAUg` — Food Truth — Full Unlock |
 | Price | `price_1TtKCRDHa6mDnQGTRr1jbbVX` — £3.99 GBP one-time |
-| Payment Link | set in `index.html` as `FOODTRUTH_PAYMENT_LINK` after create |
+| Payment Link | `plink_1TtKMcDHa6mDnQGTUY0Fnj08` — https://buy.stripe.com/aFadR95rg2NvdSac1Gbo403 |
+| App URL | https://cyberbob4269.github.io/food-truth/ |
 
 Post-pay: redirect to hosted app `?unlock=1&session_id={CHECKOUT_SESSION_ID}` → `localStorage` unlock on that device.
 
