@@ -1,0 +1,8 @@
+.secrets/
+.gh/
+.env
+.env.*
+*.mp3
+node_modules/
+.DS_Store
+Thumbs.db
