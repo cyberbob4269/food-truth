@@ -823,7 +823,8 @@ let searchCacheKey = '';
 let searchCacheResults = [];
 
 // Freemium: five staple categories free; £3.99 Stripe unlocks the rest on this device.
-const FREE_CAT_IDS = new Set(['dairy-milk','bread','cheddar','eggs','butter']);
+const FREE_CAT_ORDER = ['eggs','butter','dairy-milk','bread','cheddar'];
+const FREE_CAT_IDS = new Set(FREE_CAT_ORDER);
 const UNLOCK_STORAGE_KEY = 'foodtruth_unlocked';
 // Filled after Stripe Payment Link is created (durable buy.stripe.com URL).
 let FOODTRUTH_PAYMENT_LINK = 'https://buy.stripe.com/aFadR95rg2NvdSac1Gbo403';
@@ -835,6 +836,19 @@ function setUnlocked() {
 }
 function isProductFree(p) {
   return FREE_CAT_IDS.has(p.catId);
+}
+function freeCatRank(catId) {
+  const i = FREE_CAT_ORDER.indexOf(catId);
+  return i === -1 ? 999 : i;
+}
+function categoriesForPills() {
+  return [...CATS].sort((a, b) => {
+    const af = FREE_CAT_IDS.has(a.id) ? 0 : 1;
+    const bf = FREE_CAT_IDS.has(b.id) ? 0 : 1;
+    if (af !== bf) return af - bf;
+    if (af === 0) return freeCatRank(a.id) - freeCatRank(b.id);
+    return 0;
+  });
 }
 function canViewProduct(p) {
   return isUnlocked() || isProductFree(p);
@@ -1050,14 +1064,18 @@ function init() {
 
 function buildCatPills() {
   const wrap = document.getElementById('catPills');
-  // All pill
+  // All pill — free staples follow first so shoppers see them at the top
   wrap.innerHTML = `<button class="cpill" data-c="all" style="display:flex;align-items:center;gap:.4rem;padding:.35rem .85rem;border-radius:9999px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid #16a34a;background:#15803d;color:#fff;transition:all .15s">All categories</button>`;
-  CATS.forEach(c => {
+  categoriesForPills().forEach(c => {
+    const free = FREE_CAT_IDS.has(c.id);
     const btn = document.createElement('button');
     btn.className = 'cpill';
     btn.dataset.c = c.id;
-    btn.style.cssText = 'display:flex;align-items:center;gap:.4rem;padding:.35rem .85rem;border-radius:9999px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid #2a2d3e;background:#141720;color:#94a3b8;transition:all .15s';
-    btn.innerHTML = `${c.emoji} ${c.name} <span style="background:#1e2230;color:#475569;font-size:.7rem;padding:.1rem .45rem;border-radius:9999px">${c.products.length}</span>`;
+    btn.style.cssText = free
+      ? 'display:flex;align-items:center;gap:.4rem;padding:.35rem .85rem;border-radius:9999px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid #14532d;background:#052e16;color:#86efac;transition:all .15s'
+      : 'display:flex;align-items:center;gap:.4rem;padding:.35rem .85rem;border-radius:9999px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid #2a2d3e;background:#141720;color:#94a3b8;transition:all .15s';
+    const freeHint = free ? '<span style="font-size:.65rem;font-weight:700;color:#4ade80;background:#052e16;border:1px solid #14532d;padding:.05rem .35rem;border-radius:9999px">Free</span>' : '';
+    btn.innerHTML = `${c.emoji} ${c.name} ${freeHint}<span style="background:#1e2230;color:#475569;font-size:.7rem;padding:.1rem .45rem;border-radius:9999px">${c.products.length}</span>`;
     wrap.appendChild(btn);
   });
 }
@@ -1269,7 +1287,18 @@ function updateSearchSuggestions() {
 
 function filtered() {
   const source = searchQ.trim() ? rankedSearch(searchQ).map(r=>r.p) : ALL;
-  return source.filter(p=>passesActiveFilters(p));
+  const list = source.filter(p=>passesActiveFilters(p));
+  // Keep free staples at the top of the grid (search ranking still applies within free/paid bands)
+  if (!searchQ.trim()) {
+    return list.slice().sort((a, b) => {
+      const af = isProductFree(a) ? 0 : 1;
+      const bf = isProductFree(b) ? 0 : 1;
+      if (af !== bf) return af - bf;
+      if (af === 0) return freeCatRank(a.catId) - freeCatRank(b.catId);
+      return 0;
+    });
+  }
+  return list;
 }
 
 // ─── RENDER ──────────────────────────────────────────────────────────────────
@@ -1316,7 +1345,7 @@ function card(p) {
   const bdr = locked ? '#3b2f0a' : (isBuy ? '#052e16' : '#2d0a0a');
   const bdrHover = locked ? '#854d0e' : (isBuy ? '#14532d' : '#7f1d1d');
   const badge = locked
-    ? `<span style="font-size:.7rem;font-weight:700;padding:.25rem .6rem;border-radius:9999px;background:#422006;color:#fbbf24;border:1px solid #92400e">🔒 £3.99</span>`
+    ? `<span style="font-size:.7rem;font-weight:700;padding:.25rem .6rem;border-radius:9999px;background:#422006;color:#fbbf24;border:1px solid #92400e">🔒 Unlock all</span>`
     : (isBuy
       ? `<span style="font-size:.7rem;font-weight:700;padding:.25rem .6rem;border-radius:9999px;background:#052e16;color:#4ade80;border:1px solid #14532d">✓ Good pick</span>`
       : `<span style="font-size:.7rem;font-weight:700;padding:.25rem .6rem;border-radius:9999px;background:#2d0a0a;color:#f87171;border:1px solid #7f1d1d">✗ Avoid</span>`);
@@ -1332,7 +1361,7 @@ function card(p) {
     ? `<p style="font-size:.78rem;color:#94a3b8;line-height:1.5">Full buy/avoid guide and pack-check tips unlock with Food Truth Full Unlock.</p>`
     : (reason ? `<p style="font-size:.78rem;color:#94a3b8;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${highlightSearchText(reason)}</p>` : '');
   const footer = locked
-    ? `<p style="font-size:.7rem;color:#fbbf24;margin-top:auto;padding-top:.4rem">Unlock for £3.99 →</p>`
+    ? `<p style="font-size:.7rem;color:#fbbf24;margin-top:auto;padding-top:.4rem">Unlock all · one-off payment →</p>`
     : `<p style="font-size:.7rem;color:#334155;margin-top:auto;padding-top:.4rem">Click for full details →</p>`;
 
   return `<div class="pcard fade-up card-lift" data-id="${escapeHtml(p.id)}" style="background:#141720;border:1px solid ${bdr};border-radius:.85rem;padding:1rem;display:flex;flex-direction:column;gap:.5rem;cursor:pointer" onmouseover="this.style.borderColor='${bdrHover}'" onmouseout="this.style.borderColor='${bdr}'">
@@ -1364,17 +1393,17 @@ function openPaywallModal(p) {
       <div style="display:flex;gap:.75rem;align-items:flex-start">
         <span style="font-size:2.25rem;line-height:1;flex-shrink:0">${p.catEmoji}</span>
         <div style="flex:1;min-width:0">
-          <span style="font-size:.75rem;font-weight:700;padding:.25rem .65rem;border-radius:9999px;background:#422006;color:#fbbf24;border:1px solid #92400e">🔒 Full Unlock</span>
+          <span style="font-size:.75rem;font-weight:700;padding:.25rem .65rem;border-radius:9999px;background:#422006;color:#fbbf24;border:1px solid #92400e">🔒 Unlock all</span>
           <h2 style="font-size:1.1rem;font-weight:800;color:#fff;line-height:1.3;margin-top:.5rem">${p.name}</h2>
           <p style="font-size:.85rem;color:#94a3b8;margin-top:.2rem">${p.brand} · ${p.catName}</p>
         </div>
       </div>
     </div>
     <div style="padding:1.25rem 1.5rem 1.5rem">
-      <p style="font-size:.9rem;color:#e2e8f0;line-height:1.55;margin-bottom:1rem">Unlock every Food Truth product guide for UK supermarket shopping. Milk, bread, cheddar, eggs and butter stay free.</p>
-      <p style="font-size:.8rem;color:#94a3b8;line-height:1.5;margin-bottom:1.25rem">One-time £3.99 on the device you pay from — clear buy or avoid verdicts, better alternatives, and what to check on the pack.</p>
-      <button id="payUnlockBtn" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:.75rem;padding:.9rem 1rem;font-size:.95rem;font-weight:700;cursor:pointer">Unlock for £3.99 →</button>
-      <p style="font-size:.7rem;color:#475569;margin-top:.75rem;text-align:center">Free staples: milk, bread, cheddar, eggs, butter</p>
+      <p style="font-size:.9rem;color:#e2e8f0;line-height:1.55;margin-bottom:1rem">Unlock every Food Truth product guide for UK supermarket shopping. Eggs, butter, milk, bread and cheddar stay free.</p>
+      <p style="font-size:.8rem;color:#94a3b8;line-height:1.5;margin-bottom:1.25rem">One-off payment of £3.99 on the device you pay from — clear buy or avoid verdicts, better alternatives, and what to check on the pack.</p>
+      <button id="payUnlockBtn" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:.75rem;padding:.9rem 1rem;font-size:.95rem;font-weight:700;cursor:pointer;line-height:1.35">Unlock all<br><span style="font-size:.8rem;font-weight:600;opacity:.95">One-off payment £3.99 →</span></button>
+      <p style="font-size:.7rem;color:#475569;margin-top:.75rem;text-align:center">Free staples: eggs, butter, milk, bread, cheddar</p>
     </div>`;
   const modal = document.getElementById('prodModal');
   modal.style.display = 'flex';
@@ -1571,8 +1600,11 @@ function wireEvents() {
     if (!btn) return;
     activeCat = btn.dataset.c;
     document.querySelectorAll('.cpill').forEach(b => {
+      const free = FREE_CAT_IDS.has(b.dataset.c);
       if (b.dataset.c === activeCat) {
         b.style.cssText = 'display:flex;align-items:center;gap:.4rem;padding:.35rem .85rem;border-radius:9999px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid #16a34a;background:#15803d;color:#fff;transition:all .15s';
+      } else if (free) {
+        b.style.cssText = 'display:flex;align-items:center;gap:.4rem;padding:.35rem .85rem;border-radius:9999px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid #14532d;background:#052e16;color:#86efac;transition:all .15s';
       } else {
         b.style.cssText = 'display:flex;align-items:center;gap:.4rem;padding:.35rem .85rem;border-radius:9999px;font-size:.8rem;font-weight:600;cursor:pointer;border:1px solid #2a2d3e;background:#141720;color:#94a3b8;transition:all .15s';
       }
