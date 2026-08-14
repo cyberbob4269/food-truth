@@ -13,7 +13,7 @@ Food Truth helps UK shoppers see what is worth buying, what to avoid, and why â€
 - **Free:** staple categories (dairy milk, bread, cheddar, eggs, butter).
 - **Full unlock:** Â£3.99 one-off payment unlocks every category and product guide on your device.
 
-Purchase via Stripe; also listed on the [Netwrx Solutions shop](https://cyberbob4269.github.io/netwrx-solutions-website/).
+Purchase via Stripe; also listed on the [Netwrx Solutions shop](https://shop.netwrxsolutions.com/).
 
 ## How it is built
 
